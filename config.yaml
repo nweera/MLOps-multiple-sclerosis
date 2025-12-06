@@ -1,0 +1,14 @@
+model:
+  name: unet
+  weight_path: "saved_models/unet.h5"
+
+paths:
+  train_dir: "CleanedData/train"
+  test_dir: "CleanedData/test"
+  save_dir: "saved_models"
+  evaluation_output: "evaluation_outputs/unet"
+
+training:
+  epochs: 20
+  batch_size: 8
+  learning_rate: 0.0001

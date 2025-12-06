@@ -1,20 +1,19 @@
 import os
 import argparse
+import yaml
 import numpy as np
 import tensorflow as tf
 from PIL import Image, ImageDraw, ImageFont
 
 from Models.UNet import build_unet
-from Models.Attention_UNet import build_attention_unet
-from Models.UNetPP import UNetPP
 
 
-# -------- Load PNG as Tensor ----------
+# ----------------- Load PNG -----------------
 def load_png(path):
     img = Image.open(path).convert("L")
     img = img.resize((256, 256))
     arr = np.array(img).astype("float32") / 255.0
-    arr = np.expand_dims(arr, axis=-1)  # (H,W,1)
+    arr = np.expand_dims(arr, axis=-1)
     return arr
 
 
@@ -52,9 +51,6 @@ def recall_score(y_true, y_pred):
 
 # -------- Make side-by-side image ----------
 def make_triplet(original, gt, pred_bin, save_path):
-    """
-    original, gt, pred_bin are numpy arrays (256x256)
-    """
     orig_img = Image.fromarray(original.astype("uint8"))
     gt_img = Image.fromarray(gt.astype("uint8"))
     pred_img = Image.fromarray(pred_bin.astype("uint8"))
@@ -74,39 +70,27 @@ def make_triplet(original, gt, pred_bin, save_path):
     canvas.save(save_path)
 
 
-# -------- Evaluate function ----------
-def evaluate(model_name):
-    print(f"\n🚀 Evaluating model: {model_name}")
+# -------- Evaluate UNet ----------
+def evaluate(config):
+    weight_path = config["model"]["weight_path"]
+    test_root = config["paths"]["test_dir"]
+    out_dir = config["paths"]["evaluation_output"]
 
-    if model_name == "unet":
-        model = build_unet((256, 256, 1))
-        weight_path = "saved_models/unet.h5"
-
-    elif model_name == "attention":
-        model = build_attention_unet((256, 256, 1))
-        weight_path = "saved_models/attention.h5"
-
-    elif model_name == "unetpp":
-        model = UNetPP((256, 256, 1))
-        weight_path = "saved_models/unetpp.h5"
-
-    else:
-        raise ValueError("Unknown model. Use: unet / attention / unetpp")
-
+    print(f"\n🚀 Evaluating UNet")
     print(f"🔄 Loading weights from {weight_path}")
+
+    model = build_unet((256, 256, 1))
     model.load_weights(weight_path)
     print("✅ Model loaded successfully.\n")
 
-    root = "CleanedData/test"
-    img_dir = os.path.join(root, "images")
-    mask_dir = os.path.join(root, "masks")
+    img_dir = os.path.join(test_root, "images")
+    mask_dir = os.path.join(test_root, "masks")
 
-    out_dir = os.path.join("evaluation_outputs", model_name)
     os.makedirs(out_dir, exist_ok=True)
 
     print(f"Scanning {img_dir} ...")
     files = sorted([f for f in os.listdir(img_dir) if f.endswith(".png")])
-    print(f"📂 Found {len(files)} test examples\n")
+    print(f"📂 Found {len(files)} test samples\n")
 
     dice_scores, iou_scores, prec_scores, rec_scores = [], [], [], []
 
@@ -119,42 +103,44 @@ def evaluate(model_name):
             continue
 
         img_arr = load_png(img_path)[:, :, 0]
-        mask_arr = load_png(mask_path)[:, :, 0] * 255  # GT in 0/255 format
+        mask_arr = load_png(mask_path)[:, :, 0] * 255
 
         inp = np.expand_dims(np.expand_dims(img_arr, axis=-1), axis=0)
         pred = model.predict(inp, verbose=0)[0][:, :, 0]
 
         pred_bin = (pred > 0.5).astype("uint8") * 255
 
-        # ----- METRICS -----
+        # Metrics
         dice_scores.append(dice_score(mask_arr, pred_bin))
         iou_scores.append(iou_score(mask_arr, pred_bin))
         prec_scores.append(precision_score(mask_arr, pred_bin))
         rec_scores.append(recall_score(mask_arr, pred_bin))
 
-        # Save visualization
+        # Save side-by-side comparison
         save_path = os.path.join(out_dir, fname)
         make_triplet(img_arr * 255, mask_arr, pred_bin, save_path)
 
-    # -------- Write results file --------
+    # Save results
     results_path = os.path.join(out_dir, "evaluation_results.txt")
     with open(results_path, "w") as f:
-        f.write("====== Evaluation Results ======\n")
-        f.write(f"Model: {model_name}\n\n")
+        f.write("====== UNet Evaluation Results ======\n\n")
         f.write(f"Average Dice:      {np.mean(dice_scores):.4f}\n")
         f.write(f"Average IoU:       {np.mean(iou_scores):.4f}\n")
         f.write(f"Average Precision: {np.mean(prec_scores):.4f}\n")
         f.write(f"Average Recall:    {np.mean(rec_scores):.4f}\n")
 
-    print("\n🎉 Evaluation FINISHED!")
-    print(f"📁 Results saved in: {out_dir}")
-    print(f"📄 Metrics saved to: {results_path}\n")
+    print("\n🎉 EVALUATION COMPLETE")
+    print(f"📁 Outputs saved → {out_dir}")
+    print(f"📄 Metrics → {results_path}\n")
 
 
 # -------- MAIN --------
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", required=True, help="unet / attention / unetpp")
+    parser.add_argument("--config", type=str, default="config.yaml")
     args = parser.parse_args()
 
-    evaluate(args.model)
+    with open(args.config, "r") as f:
+        config = yaml.safe_load(f)
+
+    evaluate(config)
