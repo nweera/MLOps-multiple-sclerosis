@@ -1,38 +1,45 @@
-stages:
-  load_data:
-    cmd: python ms_slices_loader.py --config config.yaml
-    deps:
-      - ms_slices_loader.py
-      - config.yaml
-    outs:
-      - CleanedData/
+name: ML Pipeline
 
-  train:
-    cmd: python train.py --config config.yaml
-    deps:
-      - train.py
-      - Models/UNet.py
-      - CleanedData/
-      - config.yaml
-    outs:
-      - saved_models/unet.h5
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch: {}
 
-  evaluate:
-    cmd: python evaluate.py --config config.yaml
-    deps:
-      - evaluate.py
-      - saved_models/unet.h5
-      - CleanedData/
-      - config.yaml
-    outs:
-      - results/metrics.json
+jobs:
+  run-ml-pipeline:
+    runs-on: ubuntu-latest
 
-  visualize:
-    cmd: python visualize.py --config config.yaml
-    deps:
-      - visualize.py
-      - saved_models/unet.h5
-      - CleanedData/
-      - config.yaml
-    outs:
-      - results/plots/
+    steps:
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run preprocessing
+        run: |
+          python preprocess_slices.py --config config.yaml
+
+      - name: Run training
+        run: |
+          python train.py --config config.yaml
+
+      - name: Run evaluation
+        run: |
+          python evaluate.py --config config.yaml
+
+      - name: Upload evaluation results
+        uses: actions/upload-artifact@v4
+        with:
+          name: evaluation-results
+          path: evaluation_outputs/
