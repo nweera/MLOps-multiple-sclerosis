@@ -28,7 +28,7 @@ jobs:
 
       - name: Run preprocessing
         run: |
-          python preprocess_slices.py --config config.yaml
+          python preprocess_slices.py 
 
       - name: Run training
         run: |
