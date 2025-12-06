@@ -1,0 +1,38 @@
+stages:
+  load_data:
+    cmd: python ms_slices_loader.py --config config.yaml
+    deps:
+      - ms_slices_loader.py
+      - config.yaml
+    outs:
+      - CleanedData/
+
+  train:
+    cmd: python train.py --config config.yaml
+    deps:
+      - train.py
+      - Models/UNet.py
+      - CleanedData/
+      - config.yaml
+    outs:
+      - saved_models/unet.h5
+
+  evaluate:
+    cmd: python evaluate.py --config config.yaml
+    deps:
+      - evaluate.py
+      - saved_models/unet.h5
+      - CleanedData/
+      - config.yaml
+    outs:
+      - results/metrics.json
+
+  visualize:
+    cmd: python visualize.py --config config.yaml
+    deps:
+      - visualize.py
+      - saved_models/unet.h5
+      - CleanedData/
+      - config.yaml
+    outs:
+      - results/plots/
