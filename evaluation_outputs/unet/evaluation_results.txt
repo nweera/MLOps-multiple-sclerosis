@@ -1,0 +1,6 @@
+====== UNet Evaluation Results ======
+
+Average Dice:      0.0000
+Average IoU:       0.0000
+Average Precision: 0.0000
+Average Recall:    0.0000

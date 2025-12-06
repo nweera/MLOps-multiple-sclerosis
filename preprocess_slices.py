@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 from sklearn.model_selection import train_test_split
 
-data_dir = r"Data"
+data_dir = r"RawData"
 
 # Collect all (pid, image_slice, mask_slice)
 pairs = []
