@@ -1,3 +1,5 @@
+#Load a clean dataset of images and masks from .nii files
+
 import os
 import cv2
 import numpy as np

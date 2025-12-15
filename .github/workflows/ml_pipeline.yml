@@ -28,7 +28,7 @@ jobs:
 
       - name: Run preprocessing
         run: |
-          python preprocess_slices.py 
+          python preprocess.py 
 
       - name: Run training
         run: |
